@@ -51,9 +51,9 @@ void Lvgl_UserTask(void *arg) {
             rtc_time = times;
             rtcTimeStruct_t timerData;
             Rtc_GetTime(&timerData);
-            snprintf(lvgl_buffer,30,"%02d",timerData.minute);
+            snprintf(lvgl_buffer,30,"%02d",timerData.hour);
             lv_label_set_text(init_ui.screen_label_3, lvgl_buffer);
-            snprintf(lvgl_buffer,30,"%02d",timerData.second);
+            snprintf(lvgl_buffer,30,"%02d",timerData.minute);
             lv_label_set_text(init_ui.screen_label_4, lvgl_buffer);
         }
         if(times - shtc3_time == 25)
