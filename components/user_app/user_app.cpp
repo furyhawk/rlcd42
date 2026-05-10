@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <freertos/FreeRTOS.h>
 #include <esp_log.h>
+#include <time.h>
+#include <stdlib.h>
+#include <esp_netif_sntp.h>
 #include "button_bsp.h"
 #include "user_app.h"
 #include "gui_guider.h"
@@ -10,6 +13,7 @@
 #include "codec_bsp.h"
 #include "adc_bsp.h"
 #include "esp_wifi_bsp.h"
+#include "esp_wifi_secrets.h"
 #include "ble_scan_bsp.h"
 
 static lv_ui init_ui;
@@ -20,6 +24,44 @@ EventGroupHandle_t CodecGroups;
 CodecPort *codecport = NULL;
 static uint8_t *audio_ptr = NULL;
 static bool is_Music = true;
+static const char *TAG = "user_app";
+
+static void SyncRtcFromNtpAtBoot()
+{
+    EventBits_t even = xEventGroupWaitBits(wifi_even_, WIFI_EVT_GOT_IP_BIT, pdFALSE, pdTRUE, pdMS_TO_TICKS(15000));
+    if (!(even & WIFI_EVT_GOT_IP_BIT)) {
+        ESP_LOGW(TAG, "Skip NTP sync: Wi-Fi did not get IP in time");
+        return;
+    }
+
+    esp_sntp_config_t config = ESP_NETIF_SNTP_DEFAULT_CONFIG("pool.ntp.org");
+    esp_err_t err = esp_netif_sntp_init(&config);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "SNTP init failed: %s", esp_err_to_name(err));
+        return;
+    }
+
+    err = esp_netif_sntp_sync_wait(pdMS_TO_TICKS(10000));
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "SNTP sync timeout/error: %s", esp_err_to_name(err));
+        esp_netif_sntp_deinit();
+        return;
+    }
+
+    setenv("TZ", LOCAL_TIMEZONE, 1);
+    tzset();
+
+    time_t now = 0;
+    struct tm timeinfo{};
+    time(&now);
+    localtime_r(&now, &timeinfo);
+    Rtc_SetTime(timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+                timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+    esp_netif_sntp_deinit();
+    ESP_LOGI(TAG, "RTC synced from NTP: %04d-%02d-%02d %02d:%02d:%02d",
+             timeinfo.tm_year + 1900, timeinfo.tm_mon + 1, timeinfo.tm_mday,
+             timeinfo.tm_hour, timeinfo.tm_min, timeinfo.tm_sec);
+}
 
 void Lvgl_Cont1Task(void *arg) {
     lv_obj_clear_flag(init_ui.screen_label_1,LV_OBJ_FLAG_HIDDEN); 
@@ -92,7 +134,7 @@ void Lvgl_WfifBleScanTask(void *srg) {
     char send_lvgl[10] = {""};
     uint8_t ble_scan_count = 0;
     uint8_t ble_mac[6];
-    EventBits_t even = xEventGroupWaitBits(wifi_even_,0x02,pdTRUE,pdTRUE,pdMS_TO_TICKS(30000)); 
+    EventBits_t even = xEventGroupWaitBits(wifi_even_,WIFI_EVT_SCAN_DONE_BIT,pdTRUE,pdTRUE,pdMS_TO_TICKS(30000)); 
     espwifi_deinit(); //释放WIFI
     ble_scan_prepare();
     ble_stack_init();
@@ -103,7 +145,7 @@ void Lvgl_WfifBleScanTask(void *srg) {
         break;
         vTaskDelay(pdMS_TO_TICKS(30));
     }
-    if(get_bit_data(even,1)) {
+    if(even & WIFI_EVT_SCAN_DONE_BIT) {
         snprintf(send_lvgl,9,"%d",user_esp_bsp.apNum);
         lv_label_set_text(init_ui.screen_label_14, send_lvgl);
     } else {
@@ -227,9 +269,9 @@ void UserApp_AppInit() {
     Adc_PortInit();
     Custom_ButtonInit();
     Rtc_Setup(&I2cbus,0x51);
-    Rtc_SetTime(2026,1,5,14,30,30);
     shtc3port = new Shtc3Port(I2cbus);
     espwifi_init();
+    SyncRtcFromNtpAtBoot();
     CodecGroups = xEventGroupCreate();
     codecport = new CodecPort(I2cbus,"S3_RLCD_4_2");
     codecport->CodecPort_SetInfo("es8311 & es7210",1,16000,2,16);

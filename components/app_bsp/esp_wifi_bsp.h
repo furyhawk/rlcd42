@@ -5,6 +5,10 @@
 #include "freertos/event_groups.h"
 extern EventGroupHandle_t wifi_even_;
 
+#define WIFI_EVT_STA_START_BIT BIT0
+#define WIFI_EVT_SCAN_DONE_BIT BIT1
+#define WIFI_EVT_GOT_IP_BIT BIT2
+
 
 typedef struct
 {

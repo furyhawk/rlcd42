@@ -46,7 +46,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
 {
     if (event_id == WIFI_EVENT_STA_START)
     {
-        xEventGroupSetBits(wifi_even_,0x01);
+        xEventGroupSetBits(wifi_even_,WIFI_EVT_STA_START_BIT);
         ESP_LOGI("wifiSta","Connecting to configured access point");
         esp_wifi_connect();
     }
@@ -57,6 +57,7 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
         uint32_t pxip = event->ip_info.ip.addr;
         sprintf(ip, "%d.%d.%d.%d", (uint8_t)(pxip), (uint8_t)(pxip >> 8), (uint8_t)(pxip >> 16), (uint8_t)(pxip >> 24));
         ESP_LOGI("wifiSta","%s",ip);
+        xEventGroupSetBits(wifi_even_,WIFI_EVT_GOT_IP_BIT);
     }
     else if(event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
@@ -80,14 +81,14 @@ void espwifi_deinit(void)
 static void example_scan_wifi_task(void *arg)
 {
     uint16_t rec = 0;
-    EventBits_t even = xEventGroupWaitBits(wifi_even_,0x01,pdTRUE,pdTRUE,pdMS_TO_TICKS(15000));
-    if( even & 0x01 ) {
+    EventBits_t even = xEventGroupWaitBits(wifi_even_,WIFI_EVT_STA_START_BIT,pdTRUE,pdTRUE,pdMS_TO_TICKS(15000));
+    if( even & WIFI_EVT_STA_START_BIT ) {
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_scan_start(NULL,true));
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_scan_get_ap_num(&rec));
         ESP_ERROR_CHECK_WITHOUT_ABORT(esp_wifi_clear_ap_list());
     }
     user_esp_bsp.apNum = rec;
-    xEventGroupSetBits(wifi_even_,0x02);
+    xEventGroupSetBits(wifi_even_,WIFI_EVT_SCAN_DONE_BIT);
     vTaskDelete(NULL);
 }
 
