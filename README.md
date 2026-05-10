@@ -28,6 +28,9 @@ Key defaults in this project:
 
 ## Quick Start
 
+Before building, set your local Wi-Fi credentials in `components/app_bsp/esp_wifi_secrets.h`.
+The repository keeps `components/app_bsp/esp_wifi_secrets.example.h` as a template, while the real secrets file is ignored by git.
+
 From project root:
 
 ```bash

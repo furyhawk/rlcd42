@@ -13,3 +13,6 @@ managed_components/
 
 # macOS
 .DS_Store
+
+# Local Wi-Fi credentials
+components/app_bsp/esp_wifi_secrets.h

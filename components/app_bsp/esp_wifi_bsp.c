@@ -4,6 +4,7 @@
 #include "esp_event.h" 
 #include "nvs_flash.h" 
 #include "esp_log.h"
+#include "esp_wifi_secrets.h"
 
 
 #include "string.h" 
@@ -31,8 +32,8 @@ void espwifi_init(void)
     esp_event_handler_instance_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &event_handler, NULL, &Instance_WIFI_IP);
     wifi_config_t wifi_config = {
         .sta = {
-            .ssid = "PDCN",
-            .password = "1234567890",
+            .ssid = WIFI_STA_SSID,
+            .password = WIFI_STA_PASSWORD,
         },
     };
     esp_wifi_set_mode(WIFI_MODE_STA);               // Set mode to STA
@@ -46,6 +47,8 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
     if (event_id == WIFI_EVENT_STA_START)
     {
         xEventGroupSetBits(wifi_even_,0x01);
+        ESP_LOGI("wifiSta","Connecting to configured access point");
+        esp_wifi_connect();
     }
     else if (event_id == IP_EVENT_STA_GOT_IP)
     {
@@ -57,7 +60,8 @@ static void event_handler(void *arg, esp_event_base_t event_base, int32_t event_
     }
     else if(event_id == WIFI_EVENT_STA_DISCONNECTED)
     {
-        ESP_LOGD("wifiSta","Disconnected");
+        ESP_LOGW("wifiSta","Disconnected, retrying");
+        esp_wifi_connect();
     }
 }
 
