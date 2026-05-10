@@ -1,4 +1,4 @@
-# 03_Fac (ESP32-S3 + LVGL)
+# RLCD42 (ESP32-S3 + LVGL)
 
 Firmware project built with ESP-IDF for an ESP32-S3 board with an RLCD display, LVGL UI, audio codec features, Wi-Fi/BLE scanning, and SD card support.
 
